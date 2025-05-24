@@ -334,7 +334,7 @@ def build_pipeline(fastq=None,
                               input_is_unpaired=input_is_unpaired,
                               min_depth=min_depth,
                               max_bg=max_bg,
-                              norm=indiv_norm,
+                              norm=False,
                               separate_ambig_counts=separate_ambig_counts,
                               right_align_ambig_dels=right_align_ambig_dels,
                               right_align_ambig_ins=right_align_ambig_ins,
@@ -377,47 +377,7 @@ def build_pipeline(fastq=None,
 
 
             pipeline.add(p)
-
-        
-        # Normalize profiles as a group
-        if not indiv_norm:
-            normer = NormProfile(name="NormalizeAsGroup",
-                                 profiles=profile_nodes,
-                                 target_names=target_names, 
-                                 dms=dms,
-                                 threshold=threshold)
-            pipeline.add(normer)
-            if N7:
-                normer_N7 = NormProfile(name="NormalizeAsGroupN7",
-                                     profiles=profile_nodes_N7,
-                                     target_names=target_names, 
-                                     dms=dms,
-                                     dmsrun=True,
-                                     threshold=threshold)
-                pipeline.add(normer_N7)
-
-            # rewire so normalized profiles get used for downstream steps
-            for i in range(len(target_names)):
-                node = profile_nodes[i]
-                # need a list copy, since output_nodes will change during iteration
-                connected_nodes = list(node.output_nodes)
-                for cnode in connected_nodes:
-                    # skip newly added connections
-                    if cnode.parent_component is not normer:
-                        disconnect(node, cnode)
-                        connect(normer["normed_{}".format(i+1)],
-                                cnode)
-                if N7:
-                    node_N7 = profile_nodes_N7[i]
-                    connected_nodes_N7 = list(node_N7.output_nodes)
-                    for cnode_N7 in connected_nodes_N7:
-                        if cnode_N7.parent_component is not normer_N7:
-                            disconnect(node_N7, cnode_N7)
-                            connect(normer_N7["normed_{}".format(i+1)],
-                                    cnode_N7)
                        
-
-
     mp_comps = pipeline.collect_low_level_components(name="MutationParser*")
     mr_comps = pipeline.collect_low_level_components(name="MutationRendererPs")
     md_comps = pipeline.collect_low_level_components(name="RenderMappedDepths")
